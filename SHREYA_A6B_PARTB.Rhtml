@@ -1,0 +1,58 @@
+# Load necessary libraries
+install.packages("quantmod")
+install.packages("rugarch")
+install.packages("PerformanceAnalytics")
+
+library(quantmod)
+library(rugarch)
+library(PerformanceAnalytics)
+
+# Get the data for DABUR
+ticker <- "DABUR.BO"
+getSymbols(ticker, src = "yahoo", from = "2021-01-01", to = "2024-02-22")
+
+# Replace missing values using linear interpolation
+DABUR.BO <- na.approx(DABUR.BO)
+
+# Now you can work with the cleaned data
+head(DABUR.BO)
+
+# Extract Adjusted Close prices
+data <- Ad(get(ticker))
+market <- data[, "DABUR.BO.Adjusted"]
+
+# Convert to numeric and handle any missing values
+market <- as.numeric(na.omit(market))
+
+# Calculate returns
+returns <- 100 * diff(log(market))
+
+# Specify and fit an ARCH model
+spec_arch <- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 0)),
+                        mean.model = list(armaOrder = c(0, 0)))
+fit_arch <- ugarchfit(spec = spec_arch, data = returns)
+print(fit_arch)
+
+# Plot the conditional volatility for the ARCH model
+plot(fit_arch, which = "all")
+
+# Specify and fit a GARCH model
+spec_garch <- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+                         mean.model = list(armaOrder = c(0, 0)))
+fit_garch <- ugarchfit(spec = spec_garch, data = returns)
+print(fit_garch)
+
+# Plot the conditional volatility for the GARCH model
+plot(fit_garch, which = "all")
+
+# Forecasting with the GARCH model
+forecasts <- ugarchforecast(fit_garch, n.ahead = 90)
+print(forecasts)
+
+# Extract forecast results
+print(forecasts@forecast$seriesFor[87:89]) # Forecasted mean returns
+print(forecasts@forecast$sigmaFor[87:89])  # Forecasted conditional variance
+
+# Plotting the forecast results
+plot(forecasts, which = "all")
+
